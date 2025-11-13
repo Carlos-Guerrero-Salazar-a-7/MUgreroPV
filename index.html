@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Peleas - Academia de Policía</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Juego de Peleas - Academia de Policía</h1>
+        
+        <div class="game-info">
+            <div class="player-info">
+                <h2>Jugador 1</h2>
+                <div class="health-bar-container">
+                    <div id="player1-health" class="health-bar"></div>
+                </div>
+                <p class="controls">Controles: WASD + Espacio (atacar)</p>
+            </div>
+            
+            <div class="timer-container">
+                <div id="timer">60</div>
+                <div id="result-text"></div>
+            </div>
+            
+            <div class="player-info">
+                <h2>Jugador 2</h2>
+                <div class="health-bar-container">
+                    <div id="player2-health" class="health-bar"></div>
+                </div>
+                <p class="controls">Controles: Flechas + Enter (atacar)</p>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="instructions">
+            <h3>Instrucciones</h3>
+            <p><strong>Jugador 1:</strong> W (saltar), A (izquierda), D (derecha), Espacio (atacar)</p>
+            <p><strong>Jugador 2:</strong> ↑ (saltar), ← (izquierda), → (derecha), Enter (atacar)</p>
+            <p>¡El primero en reducir la salud del oponente a 0 gana!</p>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
