@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <title>Document</title>
+</head>
+<body>
+    <main>
+        <section id="conputadoras">
+            <header>
+                <img src="assets/portraits/UPV.png" alt="logo">
+                <h1>MUgenPV</h1>
+                <div id ="soloinicio"><p>no tiene cuenta?<button id="gotoregister">registrarme</button></p></div>
+                <div id ="lobby">
+                    <button id="userbutton" onclick="visualizarlogout()">
+                    <img src="hola" alt="hola" id="imagenusuario">
+                    <p></p>
+                    </button>
+                    <div id="absoluto_invisible"><button id="logoutbutton" onclick="logout()">cerrar sesion</button></div>
+                </div>
+            </header>
+
+            <article data-page-id="login" class="page active">
+                <div id="messageDiv"></div>
+                <form id="formLogin" onsubmit="return false;">
+                    Nombre<input type="text" id="username" placeholder="Username" required>
+                    Contraseña<input type="password" id="password" placeholder="Password" required>
+                    <!-- Eliminamos el onclick y usaremos un event listener en JS -->
+                    <button type="button" id="buscar">iniciar sesion</button> 
+                </form>
+            </article>
+
+            <article data-page-id="register" class="page">
+                texto registrado
+            </article>
+
+            <article data-page-id="lobby-page" class="page">
+                <h2 id="lobbytitle">Bienvenido al lobby</h2>
+                <div id="lobbycompu">
+                    <section id="izquierda">
+                        Luchadores activos:
+                    </section>
+                    <aside id="derecha">
+                        Partidas activas:
+                    </aside>
+                </div>
+            </article>
+
+            <article data-page-id="game" class="page">
+                <canvas id="main" width="0" height="0"></canvas>
+            </article>
+
+            <article data-page-id="spectate" class="page">
+
+            </article>
+        </section>
+    </main>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</body>
+<script src="js/script.js"></script>
+</html>
