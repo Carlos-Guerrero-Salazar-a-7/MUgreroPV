@@ -1,0 +1,177 @@
+canvas{
+    margin: -8px;
+    background-color: #ff5e5e;
+}
+
+#conputadoras{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+#conputadoras header{
+    background-color: #5e7cff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif;
+    gap: 20px;
+    min-height: 5%;
+}
+#conputadoras header img{
+    margin-right: 20px;
+    display: block;
+    width: 100%;
+    max-width: 100px;
+    max-height: 100px;
+}
+
+#conputadoras header h1{
+    text-align: center;
+    width: 80%;
+}
+#conputadoras header p{
+    font-size: 14px;
+    width: 10%;
+}
+#conputadoras header #lobby{
+    display: none;
+}
+#conputadoras header #lobby img{
+    max-width: 50px;
+    max-height: 50px;
+}
+#conputadoras header #soloinicio{
+    display: block;
+}
+#userbutton{
+    padding: 5px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ffb85e;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    align-items: center;
+}
+
+#absoluto_invisible{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    visibility: hidden;
+    z-index: 1;
+    background-color: #ff5e5e;
+    padding: 10px;
+    border-radius: 5px;
+    display: none;
+}
+#logoutbutton{
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ff5e5e;
+
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    width: 100px;
+}
+#formLogin{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 80vh;
+    gap: 10px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+#formLogin input{
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #000;
+    width: 200px;
+}
+
+
+
+#lobbycompu{
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    margin-top: 20px;
+    display: flex;
+}
+#derecha{
+    width: 50%;
+    border: 2px solid #000;
+    height: 400px;
+    margin-right: 10px;
+}
+#izquierda{
+    width: 50%;
+    border: 2px solid #000;
+    height: 400px;
+    margin-left: 10px;
+}
+#lobby-page{
+    align-content: center;
+    display: flex;
+    flex-direction: column;
+}
+#lobbytitle{
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    margin-top: 20px;
+
+}
+
+
+.active-user{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #5e7cff;
+}
+
+.active-user-button{
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #c00202;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    width: 100px;
+}
+.active-user h3{
+    width: 40%;
+}
+.active-user p{
+    width: 60%;
+}
+.active-user img{
+    width: 20%;
+    max-width: 100px;
+    max-height: 100px;
+}
+button{
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #5eccff;
+    color: #fff;
+    cursor: pointer;
+}
+button:hover{
+    background-color: #3e3eff;
+}
+
+/* Hide pages by default using a more specific selector */
+#conputadoras .page {
+    display: none;
+}
+/* Show the active page */
+#conputadoras .page.active {
+    display: block;
+}
