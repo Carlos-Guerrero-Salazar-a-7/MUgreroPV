@@ -1,33 +1,30 @@
-// Importamos Express para el servidor HTTP y Socket.IO para los WebSockets
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-// Creamos un servidor HTTP a partir de la aplicación Express
 const server = http.createServer(app);
 
-// Inicializamos Socket.IO, permitiendo conexiones desde tu cliente (que está en localhost)
 const io = new Server(server, {
     cors: {
-        origin: "*", // Permite cualquier origen (IDEAL SÓLO PARA DESARROLLO)
+        origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    // Configuraciones para mejor rendimiento en juegos
+    pingInterval: 25000,
+    pingTimeout: 60000,
+    upgradeTimeout: 30000
 });
 
-// --- Almacenamiento Global de Estado ---
-// Mapea socket.id al nombre de usuario para fácil referencia
 let userMap = {}; // { 'socketId': 'userName' }
-// Estado de las salas de juego activas
-let gameRooms = {}; // { 'roomID': { host: 'socketId', players: [], spectators: [], status: 'waiting', challenger: 'name', opponent: 'name', gameState: {} } }
-// Mapea el nombre de usuario a su ID de socket actual
-let activeUsers = {}; // { 'userName': 'socketId' } 
+let gameRooms = {}; // { 'roomID': { ... } }
+let activeUsers = {}; // { 'userName': 'socketId' }
+let disconnectTimers = {}; // { 'userName': timeoutId }
 
+const DISCONNECT_GRACE_PERIOD = 5000;
 
-// Función auxiliar para obtener el ID de socket de un nombre de usuario
 const getSocketIdByUserName = (userName) => activeUsers[userName];
 
-// Función para encontrar una sala activa donde esté un usuario
 const findActiveRoomByUserName = (userName) => {
     for (const roomID in gameRooms) {
         const room = gameRooms[roomID];
@@ -38,31 +35,39 @@ const findActiveRoomByUserName = (userName) => {
     return null;
 };
 
-// --- LÓGICA DE WEBSOCKETS ---
 io.on('connection', (socket) => {
-    console.log(`Usuario conectado: ${socket.id}`);
+    console.log(`🔌 Usuario conectado: ${socket.id}`);
 
-    // --- 1. LÓGICA DEL LOBBY (Conexión y mapeo de usuario) ---
     socket.on('joinLobby', (userName) => {
         if (!userName) return;
-
-        // Aseguramos que el socket salga de cualquier sala anterior antes de unirse al lobby
+        
+        if (disconnectTimers[userName]) {
+            clearTimeout(disconnectTimers[userName]);
+            delete disconnectTimers[userName];
+            console.log(`⏱️ Timer de desconexión cancelado para ${userName}`);
+        }
+        
+        // Salir de todas las salas de juego
         for (const roomID in gameRooms) {
             socket.leave(roomID);
         }
 
         socket.join('lobby');
-        userMap[socket.id] = userName; // Almacenamos el mapeo socket -> usuario
-        // La clave aquí: SOBREESCRIBIR el socket.id viejo con el nuevo.
-        // Esto permite la reconexión sin perder el estado de 'activo'.
-        activeUsers[userName] = socket.id; 
+        const wasOnline = activeUsers[userName] !== undefined;
+        const oldSocketId = activeUsers[userName];
         
-        console.log(`Usuario ${userName} (${socket.id}) se unió al Lobby.`);
+        userMap[socket.id] = userName;
+        activeUsers[userName] = socket.id;
         
-        socket.broadcast.emit('userOnline', userName); 
+        if (wasOnline && oldSocketId !== socket.id) {
+            console.log(`🔄 Usuario ${userName} RECONECTADO (${oldSocketId} -> ${socket.id})`);
+            delete userMap[oldSocketId];
+        } else if (!wasOnline) {
+            console.log(`✅ Usuario ${userName} (${socket.id}) se unió al Lobby.`);
+            socket.broadcast.emit('userOnline', userName);
+        }
     });
     
-    // --- 2. LÓGICA DE RETO (Challenge) ---
     socket.on('challengeUser', ({ opponentName }) => {
         const challengerName = userMap[socket.id];
         const opponentSocketId = getSocketIdByUserName(opponentName);
@@ -74,33 +79,33 @@ io.on('connection', (socket) => {
         
         const roomID = `game_${challengerName}_vs_${opponentName}_${Date.now()}`;
         
-        // 1. Crear la sala en estado 'waiting'
         gameRooms[roomID] = {
             id: roomID,
-            host: socket.id, // El retador es el host inicial
-            players: [socket.id], // El retador es el primer jugador
+            host: socket.id,
+            players: [socket.id],
             spectators: [],
             status: 'waiting',
             challenger: challengerName,
             opponent: opponentName,
-            // Estado inicial vacío o por defecto
-            gameState: { 
-                board: Array(9).fill(null), // Ejemplo: tablero Tic-Tac-Toe
-                turn: challengerName 
-            }
+            gameState: {
+                timeleft: 99,
+                characters: [
+                    { health: 100, position: { x: 200, y: 0 }, currentState: 'standing', facingDirection: 1 },
+                    { health: 100, position: { x: 800, y: 0 }, currentState: 'standing', facingDirection: -1 }
+                ]
+            },
+            lastUpdate: Date.now()
         };
         
-        // 2. Notificar al oponente (el cliente de JS mostrará un modal de "Aceptar/Rechazar")
         io.to(opponentSocketId).emit('receiveChallenge', { 
             challenger: challengerName, 
             roomID: roomID 
         });
         
         socket.emit('challengeSent', opponentName);
-        console.log(`${challengerName} retó a ${opponentName}. Sala: ${roomID}`);
+        console.log(`⚔️ ${challengerName} retó a ${opponentName}. Sala: ${roomID}`);
     });
 
-    // --- 3. LÓGICA DE ACEPTAR RETO (El oponente se une a la partida) ---
     socket.on('acceptChallenge', ({ roomID }) => {
         const userName = userMap[socket.id];
         const room = gameRooms[roomID];
@@ -110,22 +115,154 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // El oponente deja el lobby y se une a la sala
         socket.leave('lobby');
         socket.join(roomID);
-        room.players.push(socket.id); // El oponente es el segundo jugador
+        room.players.push(socket.id);
+        
+        // Determinar qué índice de jugador es cada uno
+        const challengerSocketId = room.host;
+        const opponentSocketId = socket.id;
+        
+        // Enviar configuración de juego a cada jugador
+        io.to(challengerSocketId).emit('gameJoined', {
+            roomID: roomID,
+            playerIndex: 0, // Challenger es jugador 1
+            opponentName: room.opponent
+        });
+        
+        io.to(opponentSocketId).emit('gameJoined', {
+            roomID: roomID,
+            playerIndex: 1, // Opponent es jugador 2
+            opponentName: room.challenger
+        });
 
-        // 3a. Notifica al jugador
-        socket.emit('gameJoined', roomID);
-
-        // 3b. Iniciar la Partida (sala llena)
         room.status = 'active';
-        io.to(roomID).emit('startGame', { roomID: room.id, players: [room.challenger, room.opponent] });
+        io.to(roomID).emit('startGame', { 
+            roomID: room.id, 
+            players: [room.challenger, room.opponent] 
+        });
 
-        console.log(`Partida ${roomID} iniciada. Jugadores: ${room.challenger} vs ${room.opponent}.`);
+        console.log(`🎮 Partida ${roomID} iniciada. ${room.challenger} vs ${room.opponent}`);
+    });
+    
+    // ===== NUEVO: MANEJO DE INPUTS DE JUEGO EN TIEMPO REAL =====
+    socket.on('gameInput', (data) => {
+        const { roomID, playerIndex, moves, timestamp } = data;
+        const room = gameRooms[roomID];
+        
+        if (!room || room.status !== 'active') {
+            return;
+        }
+        
+        // Verificar que el socket pertenece a uno de los jugadores
+        if (!room.players.includes(socket.id)) {
+            return;
+        }
+        
+        // Retransmitir el input al otro jugador
+        socket.to(roomID).emit('gameInput', {
+            roomID: roomID,
+            playerIndex: playerIndex,
+            moves: moves,
+            timestamp: timestamp
+        });
+    });
+    
+    // ===== NUEVO: SINCRONIZACIÓN DE ESTADO AUTORITATIVO =====
+    socket.on('gameStateUpdate', (data) => {
+        const { roomID, gameState } = data;
+        const room = gameRooms[roomID];
+        
+        if (!room || room.status !== 'active') {
+            return;
+        }
+        
+        // Solo el host puede actualizar el estado autoritativo
+        if (socket.id !== room.host) {
+            return;
+        }
+        
+        // Actualizar el estado en el servidor
+        room.gameState = gameState;
+        room.lastUpdate = Date.now();
+        
+        // Enviar el estado actualizado a todos en la sala
+        socket.to(roomID).emit('gameStateSync', {
+            roomID: roomID,
+            gameState: gameState
+        });
+    });
+    
+    // ===== NUEVO: FIN DE PARTIDA =====
+    socket.on('gameEnded', (data) => {
+        const { roomID, winner, finalState } = data;
+        const room = gameRooms[roomID];
+        
+        if (!room) return;
+        
+        console.log(`🏆 Partida ${roomID} terminada. Ganador: ${winner}`);
+        
+        // Notificar a todos en la sala
+        io.to(roomID).emit('matchEnded', {
+            winner: winner,
+            finalState: finalState
+        });
+        
+        // Aquí podrías guardar estadísticas en la base de datos
+        // Por ejemplo, llamar a tu API PHP para actualizar victorias/derrotas
+        
+        // Limpiar la sala después de un tiempo
+        setTimeout(() => {
+            if (gameRooms[roomID]) {
+                delete gameRooms[roomID];
+                console.log(`🗑️ Sala ${roomID} eliminada`);
+            }
+        }, 10000); // 10 segundos después del fin
     });
 
-    // --- 4. LÓGICA DE ESPECTADOR (Unirse a una partida activa) ---
+    socket.on('getrandomchallenger', () => {
+        const userName = userMap[socket.id];
+        let availableOpponents = Object.keys(activeUsers).filter(name => name !== userName);
+        
+        if (availableOpponents.length === 0) {
+            socket.emit('roomError', 'No hay oponentes disponibles en este momento.');
+            return;
+        }
+        
+        const randomIndex = Math.floor(Math.random() * availableOpponents.length);
+        const opponentName = availableOpponents[randomIndex];
+        
+        // Emitir el reto automáticamente
+        const opponentSocketId = getSocketIdByUserName(opponentName);
+        const roomID = `game_${userName}_vs_${opponentName}_${Date.now()}`;
+        
+        gameRooms[roomID] = {
+            id: roomID,
+            host: socket.id,
+            players: [socket.id],
+            spectators: [],
+            status: 'waiting',
+            challenger: userName,
+            opponent: opponentName,
+            gameState: {
+                timeleft: 99,
+                characters: [
+                    { health: 100, position: { x: 200, y: 0 }, currentState: 'standing', facingDirection: 1 },
+                    { health: 100, position: { x: 800, y: 0 }, currentState: 'standing', facingDirection: -1 }
+                ]
+            },
+            lastUpdate: Date.now()
+        };
+        
+        io.to(opponentSocketId).emit('receiveChallenge', { 
+            challenger: userName, 
+            roomID: roomID 
+        });
+        
+        socket.emit('challengeSent', opponentName);
+        console.log(`🎲 ${userName} retó aleatoriamente a ${opponentName}`);
+    });
+    
     socket.on('joinSpectator', ({ userNameToSpectate }) => {
         const roomID = findActiveRoomByUserName(userNameToSpectate);
         const room = gameRooms[roomID];
@@ -141,72 +278,81 @@ io.on('connection', (socket) => {
 
         socket.leave('lobby');
         socket.join(roomID); 
-
         room.spectators.push(socket.id);
         
-        // 4a. Notifica solo al espectador
         socket.emit('spectatorJoined', roomID); 
-        
-        // 4b. Envía el estado actual del juego
         socket.emit('gameState', room.gameState); 
 
-        console.log(`Espectador ${userMap[socket.id]} se unió a la Sala ${roomID} (Espectando a ${userNameToSpectate}).`);
-    });
-    
-    // --- 5. COMUNICACIÓN DENTRO DE LA PARTIDA ---
-    socket.on('makeMove', ({ roomID, moveData }) => {
-        const room = gameRooms[roomID];
-        // Solo los jugadores pueden enviar movimientos en partidas activas
-        if (room && room.status === 'active' && room.players.includes(socket.id)) {
-            // Lógica de validación y actualización del estado del juego
-            
-            // Ejemplo de actualización de estado (deberías manejar la lógica real aquí)
-            // room.gameState = updateGameState(room.gameState, moveData);
-
-            // Envía el movimiento a todos los de la sala (jugadores y espectadores)
-            io.to(roomID).emit('updateGame', { 
-                moveData, 
-                gameState: room.gameState // Envía el estado completo
-            });
-            console.log(`Movimiento en sala ${roomID} por ${userMap[socket.id]}.`);
-        } else {
-            socket.emit('roomError', 'Movimiento inválido o no es tu turno.');
-        }
+        console.log(`👁️ Espectador ${userMap[socket.id]} se unió a ${roomID}`);
     });
 
-    // --- DESCONEXIÓN Y LIMPIEZA ---
     socket.on('disconnect', () => {
         const userName = userMap[socket.id];
-        console.log(`Usuario desconectado: ${socket.id} (${userName})`);
+        console.log(`❌ Usuario desconectado: ${socket.id} (${userName})`);
 
-        // CRÍTICO PARA LA PERSISTENCIA (al recargar la página):
-        // NO BORRAR activeUsers[userName] aquí. Esto permite que el cliente se reconecte 
-        // y el nuevo 'joinLobby' simplemente sobrescriba su ID de socket.
-        if (userName) {
-            // delete activeUsers[userName]; // Mantener comentado para la persistencia
-            // socket.broadcast.emit('userOffline', userName); // Mantener comentado para evitar el parpadeo
+        if (!userName) {
+            delete userMap[socket.id];
+            return;
         }
-        delete userMap[socket.id]; // Esto debe permanecer para limpiar el mapeo del socket ID antiguo
 
-        // Lógica para limpiar las salas si un host o jugador se desconecta
+        // Dar tiempo de gracia para reconexión
+        disconnectTimers[userName] = setTimeout(() => {
+            console.log(`⏱️ Tiempo de gracia expirado para ${userName}. Marcando como offline.`);
+            
+            if (activeUsers[userName] === socket.id) {
+                delete activeUsers[userName];
+                socket.broadcast.emit('userOffline', userName);
+            }
+            
+            delete disconnectTimers[userName];
+        }, DISCONNECT_GRACE_PERIOD);
+
+        delete userMap[socket.id];
+
+        // Limpiar salas donde el usuario era jugador
         for (const roomID in gameRooms) {
             let room = gameRooms[roomID];
 
-            // Si el desconectado era un jugador (host o no)
             if (room.players.includes(socket.id)) {
+                // Notificar al otro jugador
+                socket.to(roomID).emit('opponentDisconnected', {
+                    message: 'Tu oponente se desconectó. Partida terminada.'
+                });
+                
                 io.to(roomID).emit('gameEnded', 'Un jugador se desconectó. Partida terminada.');
-                // Opción 1: Eliminar la sala
+                
                 delete gameRooms[roomID];
-                console.log(`Sala ${roomID} eliminada por desconexión de jugador.`);
-            } 
+                console.log(`🗑️ Sala ${roomID} eliminada por desconexión`);
+            } else if (room.spectators.includes(socket.id)) {
+                room.spectators = room.spectators.filter(id => id !== socket.id);
+                console.log(`👁️ Espectador ${userName} removido de sala ${roomID}`);
+            }
         }
     });
 });
 
-// Inicia el servidor de Node.js en el puerto 3000
+// Limpieza periódica de salas inactivas
+setInterval(() => {
+    const now = Date.now();
+    for (const roomID in gameRooms) {
+        const room = gameRooms[roomID];
+        
+        // Eliminar salas en espera por más de 5 minutos
+        if (room.status === 'waiting' && (now - room.lastUpdate) > 300000) {
+            console.log(`🗑️ Sala ${roomID} eliminada por inactividad`);
+            delete gameRooms[roomID];
+        }
+    }
+}, 60000); // Cada minuto
+
 const PORT = process.env.PORT || 3000;
-// FIX: Escucha en '0.0.0.0' para ser accesible por IP externa, no solo 'localhost'
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor de WebSockets corriendo en todas las interfaces (0.0.0.0) en el puerto: ${PORT}`);
-    console.log(`\n¡Asegúrate de ejecutar 'npm install express socket.io' primero!`);
+    console.log(`
+╔════════════════════════════════════════════════════════════╗
+║   🎮 SERVIDOR DE JUEGO EN TIEMPO REAL                      ║
+║   Puerto: ${PORT}                                          ║
+║   Tiempo de gracia: ${DISCONNECT_GRACE_PERIOD / 1000}s                              ║
+║   Estado: ✅ ACTIVO                                        ║
+╚════════════════════════════════════════════════════════════╝
+    `);
 });

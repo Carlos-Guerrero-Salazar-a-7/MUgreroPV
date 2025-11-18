@@ -1,20 +1,31 @@
 canvas{
     margin: -8px;
-    background-color: #ff5e5e;
+    background-image: url("../assets/backgrounds/background_test.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
 }
+body{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: #5092be;
 
+}
 #conputadoras{
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 #conputadoras header{
-    background-color: #5e7cff;
+    background-color: #0d065a;
     display: flex;
     justify-content: center;
     align-items: center;
     font-family: Arial, Helvetica, sans-serif;
     gap: 20px;
+    color: white;;
     min-height: 5%;
 }
 #conputadoras header img{
@@ -24,17 +35,28 @@ canvas{
     max-width: 100px;
     max-height: 100px;
 }
+#conputadoras header #portada-header {
+  display: block;
+  width: 80%;
+  max-height: 80px;
+}
 
-#conputadoras header h1{
+#conputadoras header #portada-header img{
     text-align: center;
-    width: 80%;
+  font-family:fantasy;
+  font-size: 32px;
+  max-width: 580px;
+  max-height: 80px;
+  min-width: auto;
+  min-height: auto;
 }
 #conputadoras header p{
     font-size: 14px;
-    width: 10%;
+    width: 100%;
 }
 #conputadoras header #lobby{
     display: none;
+    position: relative; /* Importante para posicionar el menú relativo a este elemento */
 }
 #conputadoras header #lobby img{
     max-width: 50px;
@@ -42,6 +64,19 @@ canvas{
 }
 #conputadoras header #soloinicio{
     display: block;
+}
+
+#centerlogin{
+    display: block;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 40%;
+    gap: 10px;
+    font-family: Arial, Helvetica, sans-serif;
+    width: 20%;
+    margin: auto;
+    background-color: white;
 }
 #userbutton{
     padding: 5px;
@@ -57,14 +92,17 @@ canvas{
 
 #absoluto_invisible{
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 100%; /* Se posiciona justo debajo del contenedor padre (#lobby) */
+    right: 0; /* Alineado a la derecha del contenedor padre */
     visibility: hidden;
-    z-index: 1;
-    background-color: #ff5e5e;
+    z-index: 1000;
     padding: 10px;
     border-radius: 5px;
     display: none;
+    background-color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 150px; /* Ancho mínimo para que no sea demasiado estrecho */
+    width: max-content; /* Se ajusta al contenido */
 }
 #logoutbutton{
     padding: 10px;
@@ -82,7 +120,6 @@ canvas{
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    height: 80vh;
     gap: 10px;
     font-family: Arial, Helvetica, sans-serif;
 }
@@ -117,12 +154,21 @@ canvas{
     align-content: center;
     display: flex;
     flex-direction: column;
+    align-items: center;
 }
 #lobbytitle{
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
     margin-top: 20px;
 
+}
+#busqueda\ rapida{
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    width: 10%;
+    height: auto;
+    margin-left: 45%;
 }
 
 
@@ -170,8 +216,17 @@ button:hover{
 /* Hide pages by default using a more specific selector */
 #conputadoras .page {
     display: none;
+    align-content: center;
 }
 /* Show the active page */
 #conputadoras .page.active {
     display: block;
+    background-color: #5092be;
+}
+
+#goingtoperfil{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #5e7cff;
 }
