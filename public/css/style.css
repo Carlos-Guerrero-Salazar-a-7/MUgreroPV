@@ -1,0 +1,232 @@
+canvas{
+    margin: -8px;
+    background-image: url("../assets/backgrounds/background_test.webp");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    image-rendering: pixelated;
+}
+body{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: #5092be;
+
+}
+#conputadoras{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+#conputadoras header{
+    background-color: #0d065a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, Helvetica, sans-serif;
+    gap: 20px;
+    color: white;;
+    min-height: 5%;
+}
+#conputadoras header img{
+    margin-right: 20px;
+    display: block;
+    width: 100%;
+    max-width: 100px;
+    max-height: 100px;
+}
+#conputadoras header #portada-header {
+  display: block;
+  width: 80%;
+  max-height: 80px;
+}
+
+#conputadoras header #portada-header img{
+    text-align: center;
+  font-family:fantasy;
+  font-size: 32px;
+  max-width: 580px;
+  max-height: 80px;
+  min-width: auto;
+  min-height: auto;
+}
+#conputadoras header p{
+    font-size: 14px;
+    width: 100%;
+}
+#conputadoras header #lobby{
+    display: none;
+    position: relative; /* Importante para posicionar el menú relativo a este elemento */
+}
+#conputadoras header #lobby img{
+    max-width: 50px;
+    max-height: 50px;
+}
+#conputadoras header #soloinicio{
+    display: block;
+}
+
+#centerlogin{
+    display: block;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 40%;
+    gap: 10px;
+    font-family: Arial, Helvetica, sans-serif;
+    width: 20%;
+    margin: auto;
+    background-color: white;
+}
+#userbutton{
+    padding: 5px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ffb85e;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    display: flex;
+    align-items: center;
+}
+
+#absoluto_invisible{
+    position: absolute;
+    top: 100%; /* Se posiciona justo debajo del contenedor padre (#lobby) */
+    right: 0; /* Alineado a la derecha del contenedor padre */
+    visibility: hidden;
+    z-index: 1000;
+    padding: 10px;
+    border-radius: 5px;
+    display: none;
+    background-color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 150px; /* Ancho mínimo para que no sea demasiado estrecho */
+    width: max-content; /* Se ajusta al contenido */
+}
+#logoutbutton{
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #ff5e5e;
+
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    width: 100px;
+}
+#formLogin{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+#formLogin input{
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #000;
+    width: 200px;
+}
+
+
+
+#lobbycompu{
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    margin-top: 20px;
+    display: flex;
+}
+#derecha{
+    width: 50%;
+    border: 2px solid #000;
+    height: 400px;
+    margin-right: 10px;
+}
+#izquierda{
+    width: 50%;
+    border: 2px solid #000;
+    height: 400px;
+    margin-left: 10px;
+}
+#lobby-page{
+    align-content: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#lobbytitle{
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
+    margin-top: 20px;
+
+}
+#busqueda\ rapida{
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    width: 10%;
+    height: auto;
+    margin-left: 45%;
+}
+
+
+.active-user{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #5e7cff;
+}
+
+.active-user-button{
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #c00202;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    width: 100px;
+}
+.active-user h3{
+    width: 40%;
+}
+.active-user p{
+    width: 60%;
+}
+.active-user img{
+    width: 20%;
+    max-width: 100px;
+    max-height: 100px;
+}
+button{
+    padding: 10px;
+    border-radius: 5px;
+    border: none;
+    background-color: #5eccff;
+    color: #fff;
+    cursor: pointer;
+}
+button:hover{
+    background-color: #3e3eff;
+}
+
+/* Hide pages by default using a more specific selector */
+#conputadoras .page {
+    display: none;
+    align-content: center;
+}
+/* Show the active page */
+#conputadoras .page.active {
+    display: block;
+    background-color: #5092be;
+}
+
+#goingtoperfil{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #5e7cff;
+}
