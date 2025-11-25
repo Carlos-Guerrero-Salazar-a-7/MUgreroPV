@@ -18,6 +18,10 @@ export const characterStates = {
     AIRING_MIDDLE: 'airing_middle',
     HURT: 'hurt',
     HURT_CROUCH: 'hurt_crouch',
+    // Nuevos estados para bloqueo y crouch persistente
+    BLOCKING: 'blocking',
+    CROUCH_BLOCKING: 'crouch_blocking',
+    CROUCH_IDLE: 'crouch_idle',
 };
 
 // Estados que son ataques

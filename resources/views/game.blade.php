@@ -16,12 +16,11 @@
                     <center><img src="{{ asset('assets/portraits/nombre.png') }}" alt="Mugenupv"></center>
                 </div>
                 <div id="soloinicio">
-                    <!-- El botón gotoregister ahora será gestionado por showPage('register') en script.js -->
-                    <p>no tiene cuenta?<button id="gotoregister">registrarme</button></p>
+                    <p>¿No tienes cuenta? <button id="gotoregister">Registrarme</button></p>
                 </div>
                 <div id="lobby">
                     <button id="userbutton" onclick="visualizarlogout()">
-                        <img src="" alt="user" id="imagenusuario">
+                        <img src="" alt="user" id="profile-icon">
                         <p></p>
                     </button>
                     <div id="absoluto_invisible">
@@ -29,70 +28,109 @@
                             <img src="{{ asset('assets/portraits/usuario.png') }}">
                             <button id="gotoperfil">Perfil</button>
                         </div>
-                        <button id="logoutbutton" onclick="logout()">cerrar sesion</button>
+                        <button id="logoutbutton" onclick="logout()">Cerrar sesión</button>
                     </div>
                 </div>
             </header>
 
-            <!-- Login Page (CORREGIDO: data-page-id a "login-page") -->
-            <article data-page-id="login-page" class="page active">
+            <!-- Login Page -->
+            <article id="login-page" class="page active">
                 <div id="logincontainer">
                     <form id="loginform">
                         <h2>Iniciar Sesión</h2>
-                        <input type="text" id="loginusername" placeholder="Nombre de Usuario">
-                        <input type="password" id="loginpassword" placeholder="Contraseña">
-                        <button id="buscar" type="submit">Entrar</button>
+                        <input type="text" id="loginusername" placeholder="Nombre de Usuario" required>
+                        <input type="password" id="loginpassword" placeholder="Contraseña" required>
+                        <button type="submit">Entrar</button>
                     </form>
                 </div>
             </article>
 
-            <!-- Register Page (CORREGIDO: data-page-id a "register-page" y AÑADIDO: campo Región) -->
-            <article data-page-id="register-page" class="page">
+            <!-- Register Page -->
+            <article id="register-page" class="page">
                 <div id="registercontainer">
                     <form id="registerform">
                         <h2>Registro de Usuario</h2>
-                        <input type="text" id="registerusername" placeholder="Nombre de Usuario">
-                        <input type="password" id="registerpassword" placeholder="Contraseña">
-                        <input type="text" id="registerregion" placeholder="Región/País"> <!-- CAMPO AÑADIDO -->
-                        <button id="register" type="submit">Registrar</button>
+                        <input type="text" id="registerusername" placeholder="Nombre de Usuario" required>
+                        <input type="hidden" id="registericon" value="default.png">
+                        
+                        <div id="avatar-selection-wrapper">
+                            <label>Avatar:</label>
+                            <div class="avatar-preview-container">
+                                <img id="current-avatar-preview" src="{{ asset('assets/portraits/default.png') }}" alt="Avatar Seleccionado">
+                                <button type="button" id="open-avatar-selector">Seleccionar Personaje</button>
+                            </div>
+                        </div>
+
+                        <!-- Modal de Selección de Avatar -->
+                        <div id="avatar-modal" class="modal-hidden">
+                            <div class="avatar-modal-content">
+                                <h3>Elige tu Luchador</h3>
+                                <div id="icon-grid">
+                                    <img src="{{ asset('assets/portraits/default.png') }}" data-value="default.png" class="profile-option selected-icon" alt="Default">
+                                    <img src="{{ asset('assets/portraits/Ryu.png') }}" data-value="Ryu.png" class="profile-option" alt="Ryu">
+                                    <img src="{{ asset('assets/portraits/ken.png') }}" data-value="ken.png" class="profile-option" alt="Ken">
+                                    <img src="{{ asset('assets/portraits/Chun.png') }}" data-value="Chun.png" class="profile-option" alt="Chun-Li">
+                                    <img src="{{ asset('assets/portraits/akuma.png') }}" data-value="akuma.png" class="profile-option" alt="Akuma">
+                                    <img src="{{ asset('assets/portraits/dante.png') }}" data-value="dante.png" class="profile-option" alt="Dante">
+                                    <img src="{{ asset('assets/portraits/gatilargo.png') }}" data-value="gatilargo.png" class="profile-option" alt="Gatilargo">
+                                </div>
+                                <button type="button" id="close-avatar-modal" class="cancel-btn">Cancelar</button>
+                            </div>
+                        </div>
+                        <input type="password" id="registerpassword" placeholder="Contraseña" required>
+                        <input type="text" id="registerregion" placeholder="Región/País (opcional)">
+                        <button type="submit">Registrar</button>
                     </form>
-                    <p>ya tienes cuenta?<button id="gotologin">iniciar sesion</button></p>
+                    <p>¿Ya tienes cuenta? <button id="gotologin">Iniciar sesión</button></p>
                 </div>
             </article>
 
             <!-- Lobby Page -->
-            <article data-page-id="lobby-page" class="page">
-                <h2 id="lobbytitle">Bienvenido al lobby</h2>
-                <div id="busqueda rapida">
-                    <button id="partidarapida">partida rapida</button>
-                    <button id="rankets">juego local</button>
-                    <button id="ranketsreal">rankets</button>
+            <article id="lobby-page" class="page">
+                <h2 id="lobbytitle">Bienvenido al Lobby</h2>
+                <p id="user-count">Cargando usuarios...</p>
+                <div id="busqueda-rapida">
+                    <button id="partidarapida">Partida Rápida</button>
+                    <button id="rankets">Juego Local</button>
+                    <button id="ranketsreal">Rankets</button>
                 </div>
                 <div id="lobbycompu">
                     <section id="izquierda">
-                        Luchadores activos:
+                        <h3>Luchadores Activos:</h3>
+                        <ul id="active-users-list"></ul>
                     </section>
                     <aside id="derecha">
-                        Partidas activas:
+                        <h3>Partidas Activas:</h3>
+                        <ul id="active-matches-list"></ul>
                     </aside>
                 </div>
             </article>
 
             <!-- Game Page -->
-            <article data-page-id="game-page" class="page">
-                <canvas id="main" width="0" height="0"></canvas>
+            <article id="game-page" class="page">
+                <canvas id="main_game" width="0" height="0"></canvas>
             </article>
 
             <!-- Spectate Page -->
-            <article data-page-id="spectate-page" class="page">
+            <article id="spectate-page" class="page">
                 <!-- Spectator view -->
             </article>
         </section>
     </main>
 
-    <!-- Modal de Mensajes (Añadido para que 'mostrarMensajeModal' funcione) -->
-    <div id="message-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); color:white; padding:20px; border-radius:10px; z-index:1000;">
-        <p id="message-text"></p>
+    <!-- Modal de Mensajes -->
+    <div id="message-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.9); color:white; padding:30px; border-radius:10px; z-index:1000; max-width:400px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+        <p id="message-text" style="margin-bottom:15px; font-size:16px;"></p>
+        <button id="close-message-modal" style="background:#3b82f6; color:white; padding:8px 16px; border:none; border-radius:5px; cursor:pointer;">Cerrar</button>
+    </div>
+
+    <!-- Modal de Reto -->
+    <div id="challenge-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.9); color:white; padding:30px; border-radius:10px; z-index:1000; max-width:400px; text-align:center; box-shadow: 0 4px 6px rgba(0,0,0,0.5);">
+        <p id="challenge-text" style="margin-bottom:20px; font-size:18px;"></p>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button onclick="acceptChallengeHandler()" style="background:#10b981; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Aceptar</button>
+            <button onclick="rejectChallengeHandler()" style="background:#ef4444; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Rechazar</button>
+        </div>
     </div>
 
     <!-- Socket.io Client -->
@@ -103,12 +141,11 @@
         window.Laravel = {
             csrfToken: '{{ csrf_token() }}',
             baseUrl: '{{ url('/') }}',
-            // Asegúrate de que SOCKET_SERVER_URL esté configurado en tu .env de Laravel
             socketUrl: '{{ env('SOCKET_SERVER_URL', 'http://127.0.0.1:3000') }}' 
         };
     </script>
     
-    <!-- CARGA DE SCRIPT.JS COMO MÓDULO (CORRECCIÓN) -->
+    <!-- Script principal -->
     <script type="module" src="{{ asset('js/script.js') }}"></script>
 </body>
 </html>

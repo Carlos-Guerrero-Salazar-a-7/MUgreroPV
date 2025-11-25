@@ -33,7 +33,7 @@ class AuthController extends Controller
             $user = User::create([
                 'nombre' => $request->nombre,
                 'contraseña' => $request->password, // Sin hash como en tu código original
-                'icono' => 'assets/portraits/default.png',
+                'icono' => $request->icono ? 'assets/portraits/' . $request->icono : 'assets/portraits/default.png',
                 'region' => $request->region ?? 'Unknown',
                 'activo' => false,
             ]);

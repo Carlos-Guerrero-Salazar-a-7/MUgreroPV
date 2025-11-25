@@ -12,6 +12,8 @@ export class Ken extends Character {
             canvasHeight,
             speed,
             100, // health
+            // Definición del portrait: Usamos el primer frame de "standing"
+            { offsetX: 32, offsetY: 268, width: 100, height: 100 }
         );
         
         this.frames = new Map([
