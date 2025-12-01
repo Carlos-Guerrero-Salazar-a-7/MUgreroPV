@@ -1,0 +1,100 @@
+/* Profile Page Styles */
+#profile-page {
+    display: block;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #518fd6;
+    color: white;
+}
+
+.profile-container {
+    background: rgba(6, 79, 173, 0.8);
+    text-align: center;
+    border: 2px solid #3282b8;
+    max-width: 80%;
+    min-height: 80%;
+    width: 90%;
+    height: 50%;
+    margin: auto;
+}
+
+.profile-avatar-large {
+    width: 20%;
+    height: 20%;
+    border-radius: 50%;
+    border: 4px solid #fbbf24;
+    object-fit: cover;
+    margin-bottom: 20px;
+}
+
+#profile-header {
+    display: flex;
+    align-items: left;
+    justify-content: center;
+    flex-direction: row;
+    gap: 20px;
+    text-align: start;
+}
+
+#profile-header #names {
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+    color: #fbbf24;
+    width: 66%;
+}
+
+#profile-username {
+    font-size: 2.5rem;
+    margin-bottom: 5px;
+    color: #fbbf24;
+}
+
+.profile-region {
+    color: #9ca3af;
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+
+.profile-stats {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    width: max-content;
+    height: max-content;
+}
+
+.stat-card h3 {
+    font-size: 1rem;
+    color: #fbbf24;
+    margin-bottom: 10px;
+}
+
+.stat-card p {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.back-btn {
+    background: #ef4444;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.back-btn:hover {
+    background: #dc2626;
+    transform: scale(1.05);
+}

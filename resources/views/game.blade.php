@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/profile.css') }}">
     <title>SF3 PWM - Street Fighter Game</title>
 </head>
 <body>
@@ -21,7 +22,7 @@
                 <div id="lobby">
                     <button id="userbutton" onclick="visualizarlogout()">
                         <img src="" alt="user" id="profile-icon">
-                        <p></p>
+                        <p id="header-username"></p>
                     </button>
                     <div id="absoluto_invisible">
                         <div id="goingtoperfil">
@@ -115,6 +116,34 @@
             <article id="spectate-page" class="page">
                 <!-- Spectator view -->
             </article>
+            <article id="rankets-page" class="page">
+                <!-- Rankets view -->
+            </article>
+            <article id="profile-page" class="page">
+                <div class="profile-container">
+                    <div class="profile-header" id="profile-header">
+                        <img id="profile-avatar" src="" alt="Avatar" class="profile-avatar-large">
+                        <div id = "names">
+                        <h2 id="profile-username">Nombre de Usuario</h2>
+                        <p id="profile-region" class="profile-region">Región</p>
+                        <div class="profile-stats">
+                            <div class="stat-card">
+                                <h3>Victorias</h3>
+                                <p id="profile-wins">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Derrotas</h3>
+                                <p id="profile-losses">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3>Total Partidas</h3>
+                                <p id="profile-total">0</p>
+                            </div>
+                        </div>
+                        <button id="back-to-lobby" class="back-btn">Volver al Lobby</button>
+                    </div>
+                </div>
+            </article>
         </section>
     </main>
 
@@ -131,6 +160,18 @@
             <button onclick="acceptChallengeHandler()" style="background:#10b981; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Aceptar</button>
             <button onclick="rejectChallengeHandler()" style="background:#ef4444; color:white; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">Rechazar</button>
         </div>
+    </div>
+
+    <!-- Modal de Rematch -->
+    <div id="rematch-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); color:white; padding:40px; border-radius:15px; z-index:1001; max-width:500px; text-align:center; box-shadow: 0 8px 16px rgba(0,0,0,0.7); border: 2px solid #fbbf24;">
+        <h2 style="margin-bottom:15px; font-size:28px; color:#fbbf24;">¡Partida Finalizada!</h2>
+        <p id="rematch-winner-text" style="margin-bottom:25px; font-size:20px; font-weight:bold;"></p>
+        <p style="margin-bottom:30px; font-size:18px;">¿Deseas la revancha?</p>
+        <div style="display:flex; gap:15px; justify-content:center;">
+            <button onclick="acceptRematch()" style="background:#10b981; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px; transition: all 0.3s;">Aceptar Revancha</button>
+            <button onclick="rejectRematch()" style="background:#ef4444; color:white; padding:12px 30px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px; transition: all 0.3s;">Volver al Lobby</button>
+        </div>
+        <p id="rematch-status" style="margin-top:20px; font-size:14px; color:#9ca3af;"></p>
     </div>
 
     <!-- Socket.io Client -->

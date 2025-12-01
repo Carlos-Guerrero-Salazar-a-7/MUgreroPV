@@ -39,6 +39,8 @@ class MatchController extends Controller
             'estado' => 'esperando',
         ]);
 
+        \Illuminate\Support\Facades\Log::info("MatchController: Partida creada: " . $validated['room_id']);
+
         return response()->json([
             'success' => true,
             'mensaje' => 'Partida creada',
@@ -105,11 +107,14 @@ class MatchController extends Controller
         $ganador = User::where('nombre', $validated['nombre_ganador'])->first();
 
         if (!$ganador) {
+            \Illuminate\Support\Facades\Log::error("MatchController: Ganador no encontrado: " . $validated['nombre_ganador']);
             return response()->json([
                 'success' => false,
                 'mensaje' => 'Ganador no encontrado'
             ], 404);
         }
+
+        \Illuminate\Support\Facades\Log::info("MatchController: Finalizando partida $roomId. Ganador: " . $ganador->nombre);
 
         // Determinar perdedor
         $nombrePerdedor = ($partida->nombre_jugador1 === $validated['nombre_ganador']) 
@@ -130,18 +135,34 @@ class MatchController extends Controller
             $partida->actualizarEstadisticas([
                 'golpes_jugador1' => $validated['golpes_jugador1'] ?? 0,
                 'golpes_jugador2' => $validated['golpes_jugador2'] ?? 0,
-                'combos_jugador1' => $validated['combos_jugador1'] ?? 0,
-                'combos_jugador2' => $validated['combos_jugador2'] ?? 0,
             ]);
 
             // Actualizar historial del ganador
-            if ($ganador->historial) {
-                $ganador->historial->increment('partidas_ganadas');
-                $ganador->historial->increment('partidas_totales');
+            if (!$ganador->historial) {
+                \Illuminate\Support\Facades\Log::warning("MatchController: Creando historial faltante para ganador: " . $ganador->nombre);
+                $ganador->historial()->create([
+                    'partidas_ganadas' => 0,
+                    'partidas_perdidas' => 0,
+                    'partidas_totales' => 0
+                ]);
+                $ganador->refresh();
             }
+            
+            $ganador->historial->increment('partidas_ganadas');
+            $ganador->historial->increment('partidas_totales');
 
             // Actualizar historial del perdedor
-            if ($perdedor && $perdedor->historial) {
+            if ($perdedor) {
+                if (!$perdedor->historial) {
+                    \Illuminate\Support\Facades\Log::warning("MatchController: Creando historial faltante para perdedor: " . $perdedor->nombre);
+                    $perdedor->historial()->create([
+                        'partidas_ganadas' => 0,
+                        'partidas_perdidas' => 0,
+                        'partidas_totales' => 0
+                    ]);
+                    $perdedor->refresh();
+                }
+                
                 $perdedor->historial->increment('partidas_perdidas');
                 $perdedor->historial->increment('partidas_totales');
             }

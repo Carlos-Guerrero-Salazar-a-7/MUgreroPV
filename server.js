@@ -40,8 +40,15 @@ const findActiveRoomByUserName = (userName) => {
 
 // Función para sincronizar con Laravel - Crear partida
 async function createMatchInDB(roomID, room) {
+    const url = `${LARAVEL_API_URL}/matches`;
+    console.log(`📡 Intentando crear partida en DB: ${url}`, {
+        room_id: roomID,
+        nombre_jugador1: room.challenger,
+        nombre_jugador2: room.opponent
+    });
+
     try {
-        const response = await fetch(`${LARAVEL_API_URL}/matches`, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -56,14 +63,44 @@ async function createMatchInDB(roomID, room) {
             })
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        console.log(`📡 Respuesta DB (Status ${response.status}):`, text);
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('❌ Error al parsear JSON de DB:', e);
+            return null;
+        }
+
+        if (!response.ok) {
+            console.error(`❌ Error HTTP al crear partida: ${response.status} - ${data.mensaje || text}`);
+            return null;
+        }
+
         console.log(`📊 Partida registrada en DB: ${roomID}`, data);
         return data;
     } catch (error) {
-        console.error('❌ Error al crear partida en DB:', error.message);
+        console.error('❌ Error de red al crear partida en DB:', error.message);
         return null;
     }
 }
+
+// Verificación de conexión al inicio
+(async () => {
+    try {
+        console.log(`🔍 Verificando conexión con API Laravel: ${LARAVEL_API_URL}/active-users`);
+        const res = await fetch(`${LARAVEL_API_URL}/game/active-users`); // Usamos una ruta GET existente
+        if (res.ok) {
+            console.log('✅ Conexión con API Laravel exitosa.');
+        } else {
+            console.error(`⚠️ Advertencia: API Laravel respondió con status ${res.status}`);
+        }
+    } catch (e) {
+        console.error(`❌ Error crítico: No se puede conectar con API Laravel en ${LARAVEL_API_URL}. Detalles:`, e.message);
+    }
+})();
 
 // Función para iniciar partida en DB
 async function startMatchInDB(roomID) {
@@ -271,7 +308,7 @@ io.on('connection', (socket) => {
         };
 
         // Registrar en la base de datos
-        await createMatchInDB(roomID);
+        await createMatchInDB(roomID, gameRooms[roomID]);
 
         io.to(opponentSocketId).emit('challengeReceived', {
             challenger: challengerName,
@@ -280,8 +317,7 @@ io.on('connection', (socket) => {
 
         socket.emit('challengeSent', opponentName);
         console.log(`⚔️ ${challengerName} retó a ${opponentName}. Sala: ${roomID}`);
-        //metodo para indicar que si acepto el challenge
-        socket.emit('challengeAccepted', roomID);
+        // El evento challengeAccepted se emitirá cuando el oponente realmente acepte
     }
 
     socket.on('challengeUser', async ({ opponentName }) => {
@@ -298,6 +334,15 @@ io.on('connection', (socket) => {
         console.log(`✅ Reto aceptado en sala: ${roomID}`);
         room.status = 'active';
         room.lastUpdate = Date.now();
+
+        // Notificar al Challenger que el reto fue aceptado
+        const challengerSocket = room.players[0];
+        if (challengerSocket) {
+            io.to(challengerSocket).emit('challengeAccepted', {
+                roomID: roomID,
+                opponentName: room.opponent
+            });
+        }
 
         // Notificar a ambos jugadores para iniciar el juego (Fase de Selección)
         // Enviamos p1Char y p2Char como null para indicar que deben seleccionar
@@ -454,6 +499,147 @@ io.on('connection', (socket) => {
         }
     });
 
+    // NUEVO: Manejo de Rematch
+    socket.on('rematchResponse', async ({ roomID, playerIndex, accepted }) => {
+        const room = gameRooms[roomID];
+        if (!room) {
+            console.error(`❌ Sala no encontrada para rematch: ${roomID}`);
+            return;
+        }
+
+        console.log(`🔄 Rematch response en sala ${roomID}: P${playerIndex + 1} = ${accepted ? 'Acepta' : 'Rechaza'}`);
+
+        // Inicializar objeto de votos si no existe
+        if (!room.rematchVotes) {
+            room.rematchVotes = { player1: null, player2: null };
+        }
+
+        // Guardar voto
+        if (playerIndex === 0) {
+            room.rematchVotes.player1 = accepted;
+        } else {
+            room.rematchVotes.player2 = accepted;
+        }
+
+        // Verificar si ambos han votado
+        if (room.rematchVotes.player1 !== null && room.rematchVotes.player2 !== null) {
+            // Ambos votaron
+            if (room.rematchVotes.player1 && room.rematchVotes.player2) {
+                // AMBOS ACEPTARON - Reiniciar partida
+                console.log(`✅ Ambos jugadores aceptaron rematch en sala ${roomID}`);
+
+                // Resetear selección de personajes
+                room.p1Char = null;
+                room.p2Char = null;
+
+                // Resetear estado del juego
+                room.gameState = {
+                    timeleft: 99,
+                    characters: [
+                        { health: 100, position: { x: 200, y: 0 }, currentState: 'standing', facingDirection: 1 },
+                        { health: 100, position: { x: 800, y: 0 }, currentState: 'standing', facingDirection: -1 }
+                    ]
+                };
+                room.stats = {
+                    golpes_jugador1: 0,
+                    golpes_jugador2: 0,
+                    combos_jugador1: 0,
+                    combos_jugador2: 0
+                };
+
+                // Notificar a ambos jugadores
+                io.to(roomID).emit('rematchAccepted', { roomID });
+
+                // Reiniciar el juego SIN personajes (forzar selección)
+                const p1Socket = room.players[0];
+                const p2Socket = room.players[1];
+
+                if (p1Socket) {
+                    io.to(p1Socket).emit('rematchStart', {
+                        roomID,
+                        playerIndex: 0,
+                        p1Name: room.challenger,
+                        p2Name: room.opponent
+                    });
+                }
+
+                if (p2Socket) {
+                    io.to(p2Socket).emit('rematchStart', {
+                        roomID,
+                        playerIndex: 1,
+                        p1Name: room.challenger,
+                        p2Name: room.opponent
+                    });
+                }
+
+                // IMPORTANTE: Resetear votos DESPUÉS de enviar los eventos
+                room.rematchVotes = { player1: null, player2: null };
+
+            } else {
+                // AL MENOS UNO RECHAZÓ - Finalizar partida y guardar registro
+                console.log(`❌ Rematch rechazado en sala ${roomID}. Guardando registro y enviando al lobby.`);
+
+                // Determinar ganador basado en el último estado del juego
+                let winner = null;
+                let p1Health = 0;
+                let p2Health = 0;
+                let timeLeft = 0;
+
+                // Verificar que gameState y characters existan
+                if (room.gameState) {
+                    if (room.gameState.characters && Array.isArray(room.gameState.characters)) {
+                        p1Health = room.gameState.characters[0]?.health || 0;
+                        p2Health = room.gameState.characters[1]?.health || 0;
+                    }
+                    timeLeft = room.gameState.timeleft || 0;
+
+                    if (p1Health > p2Health) {
+                        winner = room.challenger;
+                    } else if (p2Health > p1Health) {
+                        winner = room.opponent;
+                    }
+                }
+
+                // Guardar en base de datos
+                await finishMatchInDB(roomID, winner, {
+                    p1Health: p1Health,
+                    p2Health: p2Health,
+                    timeLeft: timeLeft
+                }, room.stats);
+
+                // Notificar rechazo
+                io.to(roomID).emit('rematchRejected', { roomID });
+
+                // Devolver jugadores al lobby
+                const p1Socket = room.players[0];
+                const p2Socket = room.players[1];
+
+                if (p1Socket) {
+                    const p1SocketObj = io.sockets.sockets.get(p1Socket);
+                    if (p1SocketObj) {
+                        p1SocketObj.leave(roomID);
+                        p1SocketObj.join('lobby');
+                    }
+                }
+
+                if (p2Socket) {
+                    const p2SocketObj = io.sockets.sockets.get(p2Socket);
+                    if (p2SocketObj) {
+                        p2SocketObj.leave(roomID);
+                        p2SocketObj.join('lobby');
+                    }
+                }
+
+                // Eliminar sala
+                delete gameRooms[roomID];
+                console.log(`🗑️ Sala ${roomID} eliminada después de rematch rechazado`);
+            }
+        } else {
+            // Solo uno ha votado, esperar al otro
+            console.log(`⏳ Esperando voto del otro jugador en sala ${roomID}`);
+        }
+    });
+
     socket.on('joinSpectator', ({ userNameToSpectate }) => {
         const roomID = findActiveRoomByUserName(userNameToSpectate);
         const room = gameRooms[roomID];
@@ -475,6 +661,37 @@ io.on('connection', (socket) => {
         socket.emit('gameState', room.gameState);
 
         console.log(`👁️ Espectador ${userMap[socket.id]} se unió a ${roomID}`);
+    });
+
+    // Manejo de Fin de Juego
+    socket.on('gameEnded', async (data) => {
+        const room = gameRooms[data.roomID];
+        if (!room) return;
+
+        console.log(`🏁 Partida finalizada en sala ${data.roomID}. Ganador: ${data.winner}`);
+
+        // Actualizar estado en DB (solo una vez)
+        if (room.status !== 'finished') {
+            room.status = 'finished';
+
+            // Determinar perdedor
+            const loser = data.winner === room.challenger ? room.opponent : room.challenger;
+
+            // Guardar en DB
+            await finishMatchInDB(data.roomID, data.winner, data.finalState, room.stats);
+
+            // Notificar a todos en la sala (incluyendo espectadores)
+            io.to(data.roomID).emit('gameEnded', {
+                roomID: data.roomID,
+                winner: data.winner,
+                loser: loser,
+                p1Name: room.challenger,
+                p2Name: room.opponent,
+                p1Char: room.p1Char,
+                p2Char: room.p2Char,
+                finalState: data.finalState
+            });
+        }
     });
 
     socket.on('disconnect', async () => {
@@ -507,10 +724,10 @@ io.on('connection', (socket) => {
                     message: 'Tu oponente se desconectó. Partida terminada.'
                 });
 
-                io.to(roomID).emit('gameEnded', 'Un jugador se desconectó. Partida terminada.');
-
-                // Cancelar en DB
-                await cancelMatchInDB(roomID);
+                // Si la partida estaba activa, cancelarla en DB
+                if (room.status === 'active') {
+                    await cancelMatchInDB(roomID);
+                }
 
                 delete gameRooms[roomID];
                 console.log(`🗑️ Sala ${roomID} eliminada por desconexión`);

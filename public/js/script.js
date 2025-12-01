@@ -1,4 +1,4 @@
-import { iniciarJuego, stopGame } from './game.js';
+import { iniciarJuego, stopGame, acceptRematchRequest, rejectRematchRequest } from './game.js';
 
 // --- CONFIGURACIÓN DE URLS PARA LARAVEL API (Puerto 8000) ---
 const API_SERVER_ROOT = "http://127.0.0.1:8000";
@@ -23,6 +23,9 @@ window.logout = logout;
 window.showPage = showPage;
 window.login = login;
 window.registrarpersona = registrarpersona;
+window.acceptRematch = acceptRematch;
+window.rejectRematch = rejectRematch;
+window.showProfile = showProfile;
 
 let registerarea = document.getElementById("soloinicio");
 let loginarea = document.getElementById("lobby");
@@ -166,6 +169,40 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Profile Button Logic
+    const profileButton = document.getElementById("gotoperfil");
+    if (profileButton) {
+        profileButton.addEventListener('click', () => {
+            // Cerrar el menú desplegable
+            const menu = document.getElementById('absoluto_invisible');
+            if (menu) {
+                menu.style.display = 'none';
+            }
+            showProfile();
+        });
+    }
+
+    const backToLobbyButton = document.getElementById("back-to-lobby");
+    if (backToLobbyButton) {
+        backToLobbyButton.addEventListener('click', () => {
+            showPage('lobby');
+        });
+    }
+
+    // Cerrar menú al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        const menu = document.getElementById('absoluto_invisible');
+        const userButton = document.getElementById('userbutton');
+
+        if (menu && userButton) {
+            // Si el clic no fue en el botón de usuario ni en el menú
+            if (!userButton.contains(e.target) && !menu.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        }
+    });
+
+
     // Inicializar el estado de autenticación al cargar
     verifyAuthStatus();
 });
@@ -203,6 +240,7 @@ async function login() {
             console.log("✅ Login exitoso:", data.user);
             currentUserId = data.user;
             document.getElementById('profile-icon').src = data.icono;
+            document.getElementById('header-username').textContent = data.user;
 
             showPage('lobby');
             loginarea.classList.remove('hidden');
@@ -332,6 +370,10 @@ async function verifyAuthStatus() {
             if (profileIcon) {
                 profileIcon.src = data.user.icono;
             }
+            const headerUsername = document.getElementById('header-username');
+            if (headerUsername) {
+                headerUsername.textContent = data.user.nombre;
+            }
             showPage('lobby');
             initializeSocketConnection(currentUserId);
         } else {
@@ -374,6 +416,17 @@ function showPage(pageId) {
     } else {
         if (soloinicio) soloinicio.style.display = 'none';
         if (lobbyHeader) lobbyHeader.style.display = 'flex'; // Assuming flex, or block
+    }
+
+    // NUEVO: Canvas Visibility Logic
+    const gameCanvas = document.getElementById('main_game');
+    if (gameCanvas) {
+        // Solo mostrar canvas en la página de juego
+        if (pageId === 'game') {
+            gameCanvas.style.display = 'block';
+        } else {
+            gameCanvas.style.display = 'none';
+        }
     }
 }
 
@@ -498,6 +551,48 @@ function connectSocket(userId) {
     socket.on('error', (message) => {
         console.error('Socket Error:', message);
         mostrarMensajeModal('Error del servidor: ' + message);
+    });
+
+    socket.on('rematchAccepted', (data) => {
+        console.log('✅ Ambos jugadores aceptaron el rematch');
+        const statusText = document.getElementById('rematch-status');
+        if (statusText) {
+            statusText.textContent = '¡Ambos aceptaron! Reiniciando partida...';
+        }
+    });
+
+    socket.on('rematchRejected', (data) => {
+        console.log('❌ Rematch rechazado');
+        const modal = document.getElementById('rematch-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        mostrarMensajeModal('Un jugador rechazó el rematch. Volviendo al lobby...');
+        setTimeout(() => {
+            stopGame();
+            showPage('lobby');
+            if (socket && socket.connected && currentUserId) {
+                socket.emit('joinLobby', currentUserId);
+            }
+        }, 2000);
+    });
+
+    socket.on('rematchStart', (config) => {
+        console.log('🔄 Iniciando rematch...', config);
+        const modal = document.getElementById('rematch-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        stopGame();
+        showPage('game');
+        iniciarJuego({
+            multiplayer: true,
+            roomID: config.roomID,
+            playerIndex: config.playerIndex,
+            socket: socket,
+            userName: config.p1Name,
+            opponentName: config.p2Name
+        });
     });
 
     socket.on('authError', (message) => {
@@ -670,5 +765,166 @@ function espectarUsuario(userNameToSpectate) {
 }
 
 function visualizarlogout() {
-    logout();
+    const menu = document.getElementById('absoluto_invisible');
+    if (menu) {
+        // Toggle visibility
+        if (menu.style.display === 'none' || menu.style.display === '') {
+            menu.style.display = 'flex';
+        } else {
+            menu.style.display = 'none';
+        }
+    }
+}
+
+// NUEVO: Funciones de rematch
+function acceptRematch() {
+    console.log('✅ Jugador acepta rematch');
+    acceptRematchRequest();
+}
+
+function rejectRematch() {
+    console.log('❌ Jugador rechaza rematch');
+    rejectRematchRequest();
+}
+
+// NUEVO: Función para mostrar perfil
+async function showProfile() {
+    if (!currentUserId) {
+        mostrarMensajeModal("Debes iniciar sesión para ver tu perfil.");
+        return;
+    }
+
+    // Si currentUserId es un objeto (del login), usamos su nombre. Si es string (del verify), lo usamos directo.
+    const username = typeof currentUserId === 'object' ? currentUserId.nombre : currentUserId;
+
+    console.log(`👤 Cargando perfil de: ${username}`);
+    const url = API_SERVER_ROOT + GAME_API_PREFIX + `/user-stats/${username}`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            const user = data.user;
+
+            // Actualizar UI del perfil
+            document.getElementById('profile-username').textContent = user.nombre;
+            document.getElementById('profile-region').textContent = user.region || 'Desconocido';
+            document.getElementById('profile-avatar').src = user.icono;
+
+            document.getElementById('profile-wins').textContent = user.stats.victorias;
+            document.getElementById('profile-losses').textContent = user.stats.derrotas;
+            document.getElementById('profile-total').textContent = user.stats.total;
+
+            // Renderizar historial de partidas
+            const historyContainer = document.querySelector('.profile-stats');
+            // Buscar si ya existe la lista de historial, si no crearla
+            let historyList = document.getElementById('match-history-list');
+
+            if (!historyList) {
+                const historySection = document.createElement('div');
+                historySection.className = 'match-history-section';
+                historySection.style.marginTop = '20px';
+                historySection.style.width = '100%';
+
+                const title = document.createElement('h2');
+                title.textContent = 'Historial de Partidas';
+                title.style.color = '#313b97ff';
+                title.style.marginBottom = '10px';
+
+                historyList = document.createElement('ul');
+                historyList.id = 'match-history-list';
+                historyList.style.listStyle = 'none';
+                historyList.style.padding = '0';
+                historyList.style.maxHeight = '150px';
+                historyList.style.overflowY = 'auto';
+
+                historySection.appendChild(title);
+                historySection.appendChild(historyList);
+
+                // Insertar después de las estadísticas
+                historyContainer.parentNode.insertBefore(historySection, document.getElementById('back-to-lobby'));
+            }
+
+            historyList.innerHTML = ''; // Limpiar lista anterior
+
+            if (user.history && user.history.length > 0) {
+                user.history.forEach(match => {
+                    const li = document.createElement('li');
+                    li.style.display = 'flex';
+                    li.style.justifyContent = 'space-between';
+                    li.style.padding = '10px';
+                    li.style.marginBottom = '5px';
+                    li.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                    li.style.borderRadius = '5px';
+                    li.style.fontSize = '20px';
+                    li.style.borderLeft = match.result === 'Victoria' ? '4px solid #10b981' : '4px solid #ef4444';
+
+                    li.innerHTML = `
+                        <span style="font-weight: bold;">vs ${match.opponent}</span>
+                        <span style="color: #ccc;">${match.character || '?'}</span>
+                        <span style="color: ${match.result === 'Victoria' ? '#10b981' : '#ef4444'}; font-weight: bold;">${match.result}</span>
+                        <span style="font-size: 0.8em; color: #9ca3af;">${match.date}</span>
+                    `;
+                    historyList.appendChild(li);
+                });
+            } else {
+                historyList.innerHTML = '<li style="text-align: center; color: #9ca3af; padding: 10px;">No hay partidas recientes</li>';
+            }
+
+            showPage('profile');
+        } else {
+            console.error("❌ Error al cargar perfil:", data.mensaje);
+            mostrarMensajeModal("Error al cargar datos del perfil.");
+        }
+    } catch (error) {
+        console.error("❌ Error de red al cargar perfil:", error);
+        mostrarMensajeModal("Error de conexión al cargar el perfil.");
+    }
+}
+
+// Función para guardar el resultado de la partida
+export async function saveMatchResult(winnerName, loserName, p1Name, p2Name, p1Char, p2Char, roomID) {
+    const url = API_SERVER_ROOT + GAME_API_PREFIX + '/match-result';
+
+    console.log(`💾 Guardando resultado: ${winnerName} vs ${loserName}`);
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                winner: winnerName,
+                loser: loserName,
+                p1Name: p1Name,
+                p2Name: p2Name,
+                p1Char: p1Char,
+                p2Char: p2Char,
+                roomID: roomID
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            console.log("✅ Resultado guardado exitosamente.");
+        } else {
+            console.error("❌ Error al guardar resultado:", data.mensaje);
+        }
+    } catch (error) {
+        console.error("❌ Error de red al guardar resultado:", error);
+    }
 }

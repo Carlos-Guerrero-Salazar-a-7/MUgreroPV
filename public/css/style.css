@@ -104,20 +104,61 @@ body {
 #absoluto_invisible {
     position: absolute;
     top: 100%;
-    /* Se posiciona justo debajo del contenedor padre (#lobby) */
     right: 0;
-    /* Alineado a la derecha del contenedor padre */
-    visibility: hidden;
-    z-index: 1000;
-    padding: 10px;
-    border-radius: 5px;
     display: none;
-    background-color: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    min-width: 150px;
-    /* Ancho mínimo para que no sea demasiado estrecho */
-    width: max-content;
-    /* Se ajusta al contenido */
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: rgba(13, 6, 90, 0.95);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    min-width: 180px;
+    margin-top: 10px;
+    border: 2px solid #fbbf24;
+}
+
+#absoluto_invisible::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #fbbf24;
+}
+
+#goingtoperfil {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: rgba(94, 124, 255, 0.2);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+#goingtoperfil:hover {
+    background-color: rgba(94, 124, 255, 0.4);
+}
+
+#goingtoperfil img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+}
+
+#gotoperfil {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    text-align: left;
 }
 
 #logoutbutton {
@@ -125,11 +166,15 @@ body {
     border-radius: 5px;
     border: none;
     background-color: #ff5e5e;
-
     color: #fff;
     cursor: pointer;
     text-align: center;
-    width: 100px;
+    width: 100%;
+    transition: all 0.3s;
+}
+
+#logoutbutton:hover {
+    background-color: #ff3e3e;
 }
 
 #formLogin {
@@ -299,12 +344,6 @@ button:hover {
     background-color: #5092be;
 }
 
-#goingtoperfil {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: #5e7cff;
-}
 
 /* Avatar Selection Styles */
 #avatar-selection-wrapper {
@@ -377,8 +416,9 @@ button:hover {
 }
 
 #icon-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
     gap: 10px;
     margin-bottom: 20px;
     max-height: 60vh;
@@ -413,4 +453,12 @@ button:hover {
 
 .cancel-btn:hover {
     background-color: #ff3e3e;
+}
+
+#userbutton:hover {
+    transform: scale(1.1);
+}
+
+#header-username {
+    margin-left: 10px;
 }

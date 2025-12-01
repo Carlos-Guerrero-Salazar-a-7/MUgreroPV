@@ -1,5 +1,3 @@
-import { iniciarJuego, stopGame } from './game.js';
-
 // --- CONFIGURACIÓN DE URLS PARA LARAVEL API (Puerto 8000) ---
 const API_SERVER_ROOT = "http://127.0.0.1:8000";
 const AUTH_API_PREFIX = "/api/auth";
@@ -28,19 +26,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const buscarBoton = document.getElementById("buscar");
     if (buscarBoton) {
         // [CORRECCIÓN] Ahora llama directamente a login, reemplazando buscarpersona
-        buscarBoton.addEventListener('click', login); 
+        buscarBoton.addEventListener('click', login);
     }
-    
+
     const registerBoton = document.getElementById("register");
     if (registerBoton) {
-        registerBoton.addEventListener('click', registrarpersona); 
+        registerBoton.addEventListener('click', registrarpersona);
     }
-    
+
     const registerPageLink = document.getElementById("gotoregister");
     if (registerPageLink) {
-        registerPageLink.addEventListener('click', () => showPage('register')); 
+        registerPageLink.addEventListener('click', () => showPage('register'));
     }
-    
+
     const quickMatchButton = document.getElementById("partidarapida");
     if (quickMatchButton) {
         quickMatchButton.addEventListener('click', () => {
@@ -86,7 +84,7 @@ async function login() {
             console.log("✅ Login exitoso:", data.user);
             currentUserId = data.user;
             document.getElementById('profile-icon').src = data.icono;
-            
+
             showPage('lobby');
             initializeSocketConnection(currentUserId);
         } else {
@@ -114,10 +112,10 @@ async function registrarpersona() {
                 'X-Requested-With': 'XMLHttpRequest',
             },
             credentials: 'include',
-            body: JSON.stringify({ 
-                nombre: username, 
-                password: password, 
-                region: region 
+            body: JSON.stringify({
+                nombre: username,
+                password: password,
+                region: region
             })
         });
 
@@ -159,15 +157,15 @@ async function logout() {
                 socket.disconnect();
                 socket = null;
             }
-            showPage('login'); 
+            showPage('login');
             mostrarMensajeModal("Sesión cerrada. ¡Vuelve pronto!");
         } else {
             console.error("❌ Error al cerrar sesión:", data.mensaje);
-            showPage('login'); 
+            showPage('login');
         }
     } catch (error) {
         console.error("❌ Error de conexión al API durante logout:", error);
-        showPage('login'); 
+        showPage('login');
     }
 }
 
@@ -223,8 +221,8 @@ function mostrarMensajeModal(mensaje) {
     const text = document.getElementById('message-text');
     text.textContent = mensaje;
     modal.style.display = 'flex';
-    
-    document.getElementById('close-message-modal').onclick = function() {
+
+    document.getElementById('close-message-modal').onclick = function () {
         modal.style.display = 'none';
     };
 }
@@ -243,10 +241,10 @@ function connectSocket(userId) {
         console.error('🚫 Máximo de intentos de reconexión alcanzado.');
         return;
     }
-    
+
     socket = io(WS_URL, {
         query: { userId: userId },
-        reconnectionAttempts: 0 
+        reconnectionAttempts: 0
     });
 
     socket.on('connect', () => {
@@ -277,23 +275,23 @@ function connectSocket(userId) {
     socket.on('challengeAccepted', (data) => {
         handleChallengeAccepted(data);
     });
-    
+
     socket.on('gameStart', (config) => {
         console.log('🎉 Partida iniciada!', config);
         showPage('game');
         iniciarJuego(config);
     });
-    
+
     socket.on('spectateStart', (config) => {
         console.log('👁️ Espectando partida.', config);
         showPage('game');
         iniciarJuego(config);
     });
-    
+
     socket.on('challengeRejected', (data) => {
         console.log(`🚫 Reto a ${data.challenger} rechazado.`);
         mostrarMensajeModal(`El usuario ${data.challenger} rechazó tu reto.`);
-        if(socket && socket.connected && currentUserId) {
+        if (socket && socket.connected && currentUserId) {
             socket.emit('joinLobby', currentUserId);
         }
     });
@@ -306,7 +304,7 @@ function connectSocket(userId) {
 
 function fetchActiveUsers() {
     const url = API_SERVER_ROOT + GAME_API_PREFIX + '/active-users';
-    
+
     fetch(url, { credentials: 'include' })
         .then(response => response.json())
         .then(data => {
@@ -325,15 +323,15 @@ function updateActiveUsersList(users) {
     if (!list) return;
 
     list.innerHTML = '';
-    
-    const currentUser = currentUserId; 
-    
+
+    const currentUser = currentUserId;
+
     users.forEach(user => {
         if (user.nombre === currentUser) return;
 
         const li = document.createElement('li');
         li.className = 'flex items-center justify-between p-3 bg-gray-700 rounded-lg shadow-md mb-2';
-        
+
         li.innerHTML = `
             <div class="flex items-center">
                 <img src="${user.icono}" alt="Icono" class="w-8 h-8 rounded-full mr-3 border-2 border-green-400">
@@ -359,11 +357,11 @@ function updateActiveUsersList(users) {
     document.querySelectorAll('.retar-btn').forEach(button => {
         button.addEventListener('click', (e) => retarUsuario(e.currentTarget.dataset.user));
     });
-    
+
     document.querySelectorAll('.espectar-btn').forEach(button => {
         button.addEventListener('click', (e) => espectarUsuario(e.currentTarget.dataset.user));
     });
-    
+
     const userCount = users.length;
     document.getElementById('user-count').textContent = userCount > 0 ? `${userCount} usuarios activos` : 'No hay otros usuarios activos';
 }
@@ -375,11 +373,11 @@ function handleChallengeReceived(data) {
 
     const modal = document.getElementById('challenge-modal');
     const text = document.getElementById('challenge-text');
-    
+
     text.textContent = `¡${challenger} te ha retado a una partida!`;
     modal.style.display = 'flex';
-    
-    if(socket && socket.connected && currentUserId) {
+
+    if (socket && socket.connected && currentUserId) {
         socket.emit('leaveLobby', currentUserId);
     }
 }
@@ -395,8 +393,8 @@ function retarUsuario(opponentName) {
         socket.emit('challengeUser', { challengerName: currentUserId, opponentName: opponentName });
         console.log(`⚔️ Retando a ${opponentName}.`);
         mostrarMensajeModal(`Reto enviado a ${opponentName}. Esperando respuesta...`);
-        if(socket && socket.connected && currentUserId) {
-            socket.emit('leaveLobby', currentUserId); 
+        if (socket && socket.connected && currentUserId) {
+            socket.emit('leaveLobby', currentUserId);
         }
     } else {
         console.error("No conectado al servidor de juegos.");
@@ -405,10 +403,10 @@ function retarUsuario(opponentName) {
     }
 }
 
-function acceptChallengeHandler(){
+function acceptChallengeHandler() {
     const modal = document.getElementById('challenge-modal');
     modal.style.display = 'none';
-    
+
     if (socket && socket.connected && incomingChallengeRoomID) {
         socket.emit('acceptChallenge', { roomID: incomingChallengeRoomID });
         console.log(`✅ Reto aceptado: ${incomingChallengeRoomID}`);
@@ -417,23 +415,23 @@ function acceptChallengeHandler(){
     }
 }
 
-function rejectChallengeHandler(){
+function rejectChallengeHandler() {
     const modal = document.getElementById('challenge-modal');
     modal.style.display = 'none';
-    
+
     if (socket && incomingChallengeRoomID) {
         socket.emit('rejectChallenge', { roomID: incomingChallengeRoomID });
         console.log(`❌ Reto ${incomingChallengeRoomID} rechazado.`);
         incomingChallengeRoomID = null;
     }
-    if(socket && socket.connected && currentUserId) {
+    if (socket && socket.connected && currentUserId) {
         socket.emit('joinLobby', currentUserId);
     }
 }
 
-function espectarUsuario(userNameToSpectate){
+function espectarUsuario(userNameToSpectate) {
     if (socket && socket.connected && currentUserId) {
-        socket.emit('joinSpectator', { userNameToSpectate: userNameToSpectate }); 
+        socket.emit('joinSpectator', { userNameToSpectate: userNameToSpectate });
         console.log(`👁️ Solicitando espectar la partida de ${userNameToSpectate}.`);
     } else {
         console.error("No conectado al servidor de juegos.");

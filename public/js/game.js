@@ -286,9 +286,13 @@ export async function iniciarJuego(config = {}) {
     gameEnded = false;
     resultAnimationProgress = 0;
     timeleft = 99;
+    rematchModalShown = false; // NUEVO: Resetear flag de modal de rematch
 
     gameCanvas = document.getElementById('main_game');
     gameCtx = gameCanvas.getContext('2d');
+
+    // NUEVO: Mostrar canvas para la pantalla de selección
+    gameCanvas.style.display = 'block';
 
     setupResize();
     window.dispatchEvent(new Event('resize'));
@@ -333,67 +337,83 @@ export async function iniciarJuego(config = {}) {
     gameLoop(performance.now());
 }
 
-// ===== CONFIGURAR LISTENERS DE RED (Adición para selección) =====
+// ===== HANDLERS DE RED NOMBRADOS (Para poder removerlos limpiamente) =====
+function onOpponentCharacterSelected(data) {
+    if (data.roomID === currentRoomID && data.playerIndex !== localPlayerIndex) {
+        const opponentIndex = data.playerIndex;
+        selectedCharacters[opponentIndex] = CHARACTER_LIST.find(c => c.name === data.characterName);
+        console.log(`Oponente (P${opponentIndex + 1}) seleccionó: ${data.characterName}`);
+    }
+}
+
+function onGameInput(data) {
+    if (data.roomID === currentRoomID) {
+        const opponentIndex = localPlayerIndex === 0 ? 1 : 0;
+        const opponentChar = characters[opponentIndex];
+        if (opponentChar && data.moves) {
+            Object.keys(data.moves).forEach(key => {
+                opponentChar.moves[key] = data.moves[key];
+            });
+        }
+    }
+}
+
+function onGameStateSync(data) {
+    if (data.roomID === currentRoomID) {
+        syncGameState(data.gameState);
+    }
+}
+
+function onOpponentDisconnected() {
+    if (!gameEnded) {
+        gameEnded = true;
+        alert('Tu oponente se desconectó. Partida terminada.');
+        stopGame();
+        if (window.showPage) {
+            window.showPage('lobby');
+        }
+        // Intentar volver al lobby si es posible
+        if (socketConnection && socketConnection.connected) {
+            // No tenemos currentUserId aquí fácilmente, pero el socket sigue conectado.
+        }
+    }
+}
+
+function onGameStart(config) {
+    console.log('🎉 Partida iniciada desde el servidor (Fase de Combate)!', config);
+
+    // Finalizar la selección en el cliente
+    isSelecting = false;
+    gameCanvas.removeEventListener('click', handleSelectionClick);
+
+    // Usar los personajes confirmados por el servidor
+    const p1CharData = CHARACTER_LIST.find(c => c.name === config.p1Char) || CHARACTER_LIST.find(c => c.name === "Ryu");
+    const p2CharData = CHARACTER_LIST.find(c => c.name === config.p2Char) || CHARACTER_LIST.find(c => c.name === "Ken");
+
+    // Instanciar personajes
+    characters = [
+        new p1CharData.constructor(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, { x: 200, y: VIRTUAL_HEIGHT },
+            { width: VIRTUAL_WIDTH * 0.15, height: VIRTUAL_HEIGHT * 0.35 }, 8),
+        new p2CharData.constructor(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, { x: VIRTUAL_WIDTH - 200, y: VIRTUAL_HEIGHT },
+            { width: VIRTUAL_WIDTH * 0.15, height: VIRTUAL_HEIGHT * 0.35 }, 8)
+    ];
+
+    setupControls(); // Cargar controles de juego
+    if (window.showPage) {
+        window.showPage('game');
+    }
+}
+
+// ===== CONFIGURAR LISTENERS DE RED (Modificado) =====
 function setupNetworkListeners() {
     if (!socketConnection || !currentRoomID) return;
 
-    // Listener para recibir la selección del oponente
-    socketConnection.on('opponentCharacterSelected', (data) => {
-        if (data.roomID === currentRoomID && data.playerIndex !== localPlayerIndex) {
-            const opponentIndex = data.playerIndex;
-            selectedCharacters[opponentIndex] = CHARACTER_LIST.find(c => c.name === data.characterName);
-            console.log(`Oponente (P${opponentIndex + 1}) seleccionó: ${data.characterName}`);
-        }
-    });
-
-    socketConnection.on('gameInput', (data) => {
-        if (data.roomID === currentRoomID) {
-            const opponentIndex = localPlayerIndex === 0 ? 1 : 0;
-            const opponentChar = characters[opponentIndex];
-            if (opponentChar && data.moves) {
-                Object.keys(data.moves).forEach(key => {
-                    opponentChar.moves[key] = data.moves[key];
-                });
-            }
-        }
-    });
-
-    socketConnection.on('gameStateSync', (data) => {
-        if (data.roomID === currentRoomID) {
-            syncGameState(data.gameState);
-        }
-    });
-
-    socketConnection.on('opponentDisconnected', () => {
-        if (!gameEnded) {
-            gameEnded = true;
-            alert('Tu oponente se desconectó. Partida terminada.');
-            stopGame();
-        }
-    });
-
-    socketConnection.on('gameStart', (config) => {
-        console.log('🎉 Partida iniciada desde el servidor!', config);
-
-        // Finalizar la selección en el cliente
-        isSelecting = false;
-        gameCanvas.removeEventListener('click', handleSelectionClick);
-
-        // Usar los personajes confirmados por el servidor
-        const p1CharData = CHARACTER_LIST.find(c => c.name === config.p1Char) || CHARACTER_LIST.find(c => c.name === "Ryu");
-        const p2CharData = CHARACTER_LIST.find(c => c.name === config.p2Char) || CHARACTER_LIST.find(c => c.name === "Ken");
-
-        // Instanciar personajes
-        characters = [
-            new p1CharData.constructor(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, { x: 200, y: VIRTUAL_HEIGHT },
-                { width: VIRTUAL_WIDTH * 0.15, height: VIRTUAL_HEIGHT * 0.35 }, 8),
-            new p2CharData.constructor(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, { x: VIRTUAL_WIDTH - 200, y: VIRTUAL_HEIGHT },
-                { width: VIRTUAL_WIDTH * 0.15, height: VIRTUAL_HEIGHT * 0.35 }, 8)
-        ];
-
-        setupControls(); // Cargar controles de juego
-        window.showPage('game');
-    });
+    // Usar funciones nombradas para poder hacer .off() correctamente después
+    socketConnection.on('opponentCharacterSelected', onOpponentCharacterSelected);
+    socketConnection.on('gameInput', onGameInput);
+    socketConnection.on('gameStateSync', onGameStateSync);
+    socketConnection.on('opponentDisconnected', onOpponentDisconnected);
+    socketConnection.on('gameStart', onGameStart);
 }
 
 // ===== SINCRONIZACIÓN DE JUEGO (Netcode) =====
@@ -689,6 +709,19 @@ function gameLoop(currentTime) {
                             timeLeft: timeleft
                         }
                     });
+                } else if (!isMultiplayer) {
+                    // Guardar resultado localmente (vs CPU o Local PvP)
+                    // Asumimos Local PvP por ahora donde P1 es el usuario logueado si existe
+                    // Necesitamos importar saveMatchResult en game.js o hacerlo disponible globalmente
+                    if (window.saveMatchResult) {
+                        const p1Name = "Player 1";
+                        const p2Name = "Player 2";
+                        const winnerName = characters[0].health > characters[1].health ? p1Name : p2Name;
+                        const loserName = winnerName === p1Name ? p2Name : p1Name;
+
+                        // En local no guardamos en BD por ahora, o podríamos si tuviéramos usuarios reales
+                        // window.saveMatchResult(winnerName, loserName, ...);
+                    }
                 }
             }
         }
@@ -888,7 +921,10 @@ function drawDebugInfo(ctx) {
 function drawResultAnimation(ctx, secondspassed) {
     if (resultAnimationProgress < 1) {
         resultAnimationProgress += secondspassed / ANIMATION_DURATION;
-        if (resultAnimationProgress > 1) resultAnimationProgress = 1;
+        if (resultAnimationProgress > 1) {
+            resultAnimationProgress = 1;
+            showRematchModal();
+        }
     }
     const easeProgress = 1 - Math.pow(1 - resultAnimationProgress, 3);
 
@@ -941,7 +977,90 @@ function drawResultAnimation(ctx, secondspassed) {
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '40px Arial';
-    ctx.fillText('Press SPACE to return to lobby', currentX, currentY + 100);
+    if (isMultiplayer) {
+        ctx.fillText('Esperando decisión de rematch...', currentX, currentY + 100);
+    } else {
+        ctx.fillText('Press SPACE to return to lobby', currentX, currentY + 100);
+    }
+}
+
+// NUEVO: Función para mostrar modal de rematch
+let rematchModalShown = false; // Flag para evitar mostrar el modal múltiples veces
+
+function showRematchModal() {
+    // Evitar mostrar el modal múltiples veces
+    if (rematchModalShown) return;
+
+    const modal = document.getElementById('rematch-modal');
+    const winnerText = document.getElementById('rematch-winner-text');
+
+    if (!modal) return;
+
+    // Determinar ganador
+    let winner = 'Empate';
+    if (isMultiplayer) {
+        if (characters[0].health > characters[1].health) {
+            winner = userName;
+        } else if (characters[1].health > characters[0].health) {
+            winner = userOpponentName;
+        }
+    } else {
+        if (characters[0].health > characters[1].health) {
+            winner = characters[0].name;
+        } else if (characters[1].health > characters[0].health) {
+            winner = characters[1].name;
+        }
+    }
+
+    if (winnerText) {
+        winnerText.textContent = winner === 'Empate' ? '¡Empate!' : `¡${winner} ganó!`;
+    }
+
+    // Solo mostrar modal en modo multijugador
+    if (isMultiplayer) {
+        modal.style.display = 'flex';
+        rematchModalShown = true; // Marcar como mostrado
+    }
+}
+
+// NUEVO: Exportar función para aceptar rematch
+export function acceptRematchRequest() {
+    const modal = document.getElementById('rematch-modal');
+    const statusText = document.getElementById('rematch-status');
+
+    if (statusText) {
+        statusText.textContent = 'Esperando respuesta del oponente...';
+    }
+
+    if (isMultiplayer && socketConnection && currentRoomID) {
+        socketConnection.emit('rematchResponse', {
+            roomID: currentRoomID,
+            playerIndex: localPlayerIndex,
+            accepted: true
+        });
+    }
+}
+
+// NUEVO: Exportar función para rechazar rematch
+export function rejectRematchRequest() {
+    const modal = document.getElementById('rematch-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    if (isMultiplayer && socketConnection && currentRoomID) {
+        socketConnection.emit('rematchResponse', {
+            roomID: currentRoomID,
+            playerIndex: localPlayerIndex,
+            accepted: false
+        });
+    }
+
+    // Detener juego y volver al lobby
+    stopGame();
+    if (window.showPage) {
+        window.showPage('lobby');
+    }
 }
 
 export function stopGame() {
@@ -960,11 +1079,14 @@ export function stopGame() {
         }
     }
     if (socketConnection && isMultiplayer) {
-        socketConnection.off('opponentCharacterSelected');
-        socketConnection.off('gameStart');
-        socketConnection.off('gameInput');
-        socketConnection.off('gameStateSync');
-        socketConnection.off('opponentDisconnected');
+        // Remover SOLO los listeners específicos de esta instancia de juego
+        socketConnection.off('opponentCharacterSelected', onOpponentCharacterSelected);
+        socketConnection.off('gameInput', onGameInput);
+        socketConnection.off('gameStateSync', onGameStateSync);
+        socketConnection.off('opponentDisconnected', onOpponentDisconnected);
+        socketConnection.off('gameStart', onGameStart);
+
+        // NO remover listeners globales o de rematch que se manejan en script.js o persistentes
     }
     isSelecting = false;
     isMultiplayer = false;
